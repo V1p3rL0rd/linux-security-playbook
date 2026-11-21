@@ -1,0 +1,41 @@
+---
+- name: Deploy kernel sysctl hardening parameters
+  ansible.builtin.copy:
+    dest: /etc/sysctl.d/99-security.conf
+    owner: root
+    group: root
+    mode: '0644'
+    content: |
+      # IP Spoofing protection (1 = strict, CIS; 2 = loose for multi-homed/VPN/K8s hosts)
+      net.ipv4.conf.all.rp_filter = {{ security_rp_filter }}
+      net.ipv4.conf.default.rp_filter = {{ security_rp_filter }}
+
+      # Disable ICMP Redirect Acceptance & Sending
+      net.ipv4.conf.all.accept_redirects = 0
+      net.ipv4.conf.default.accept_redirects = 0
+      net.ipv4.conf.all.send_redirects = 0
+      net.ipv4.conf.default.send_redirects = 0
+      net.ipv6.conf.all.accept_redirects = 0
+      net.ipv6.conf.default.accept_redirects = 0
+
+      # Disable Source Packet Routing
+      net.ipv4.conf.all.accept_source_route = 0
+      net.ipv4.conf.default.accept_source_route = 0
+      net.ipv6.conf.all.accept_source_route = 0
+      net.ipv6.conf.default.accept_source_route = 0
+
+      # TCP SYN Flood Protection
+      net.ipv4.tcp_syncookies = 1
+
+      # Ignore ICMP Broadcast Echoes
+      net.ipv4.icmp_echo_ignore_broadcasts = 1
+      net.ipv4.icmp_ignore_bogus_error_responses = 1
+
+      # Memory Protection & Kernel Hardening
+      kernel.randomize_va_space = 2
+      kernel.dmesg_restrict = 1
+      kernel.kptr_restrict = 2
+      fs.protected_hardlinks = 1
+      fs.protected_symlinks = 1
+      fs.suid_dumpable = 0
+  notify: Apply sysctl

@@ -1,0 +1,50 @@
+---
+# Firewall tasks for UFW (Debian/Ubuntu)
+- name: Setup UFW firewall (Debian/Ubuntu)
+  when: ansible_os_family == 'Debian'
+  block:
+    - name: Ensure UFW is installed
+      ansible.builtin.apt:
+        name: ufw
+        state: present
+
+    - name: Configure UFW default policies
+      community.general.ufw:
+        direction: "{{ item.direction }}"
+        policy: "{{ item.policy }}"
+      loop:
+        - { direction: 'incoming', policy: 'deny' }
+        - { direction: 'outgoing', policy: 'allow' }
+
+    - name: Allow SSH port in UFW
+      community.general.ufw:
+        rule: allow
+        port: "{{ security_ssh_port | string }}"
+        proto: tcp
+        comment: "SSH access"
+
+    - name: Enable UFW
+      community.general.ufw:
+        state: enabled
+
+# Firewall tasks for Firewalld (RedHat family)
+- name: Setup Firewalld (RedHat family)
+  when: ansible_os_family == 'RedHat'
+  block:
+    - name: Ensure firewalld is installed and running
+      ansible.builtin.dnf:
+        name: firewalld
+        state: present
+
+    - name: Ensure firewalld service is started and enabled
+      ansible.builtin.service:
+        name: firewalld
+        state: started
+        enabled: true
+
+    - name: Allow SSH service / port in firewalld
+      ansible.posix.firewalld:
+        port: "{{ security_ssh_port }}/tcp"
+        permanent: true
+        immediate: true
+        state: enabled

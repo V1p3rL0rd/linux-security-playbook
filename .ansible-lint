@@ -1,0 +1,5 @@
+---
+# Role variables use the consistent `security_` prefix (public interface);
+# renaming to `security_hardening_` would break existing inventories.
+skip_list:
+  - var-naming[no-role-prefix]

@@ -1,0 +1,63 @@
+---
+# sshd uses the FIRST value it reads for most keywords and processes drop-ins
+# in lexical order, so the hardening file must sort before vendor/cloud-init
+# drop-ins (e.g. 50-cloud-init.conf, 50-redhat.conf).
+- name: Ensure /etc/ssh/sshd_config.d directory exists
+  ansible.builtin.file:
+    path: /etc/ssh/sshd_config.d
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+# On socket-activated Ubuntu (22.10+) /run/sshd may not exist while ssh.service
+# is stopped, which makes `sshd -t` validation fail.
+- name: Ensure sshd privilege separation directory exists (Debian/Ubuntu)
+  when: ansible_os_family == 'Debian'
+  ansible.builtin.file:
+    path: /run/sshd
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Remove legacy late-ordered hardening drop-in
+  ansible.builtin.file:
+    path: /etc/ssh/sshd_config.d/99-hardening.conf
+    state: absent
+  notify: Reload SSH
+
+- name: Deploy SSH daemon hardening drop-in configuration
+  ansible.builtin.copy:
+    dest: /etc/ssh/sshd_config.d/00-hardening.conf
+    owner: root
+    group: root
+    mode: '0600'
+    content: |
+      # Managed by Ansible (security_hardening role)
+      Port {{ security_ssh_port }}
+      PermitRootLogin {{ security_permit_root_login }}
+      PasswordAuthentication {{ security_password_authentication }}
+      PermitEmptyPasswords no
+      PubkeyAuthentication yes
+      MaxAuthTries {{ security_max_auth_tries }}
+      ClientAliveInterval 300
+      ClientAliveCountMax 2
+      X11Forwarding no
+      AllowAgentForwarding no
+    validate: '/usr/sbin/sshd -t -f %s'
+  notify: Reload SSH
+
+- name: Ensure sshd_config includes sshd_config.d drop-ins
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    line: "Include /etc/ssh/sshd_config.d/*.conf"
+    insertafter: BOF
+    state: present
+    backup: true
+  notify: Reload SSH
+
+- name: Validate full effective sshd configuration
+  ansible.builtin.command:
+    cmd: /usr/sbin/sshd -t
+  changed_when: false

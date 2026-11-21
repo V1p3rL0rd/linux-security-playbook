@@ -1,0 +1,64 @@
+---
+- name: Configure AppArmor (Debian/Ubuntu)
+  when: ansible_os_family == 'Debian'
+  block:
+    - name: Install AppArmor packages
+      ansible.builtin.apt:
+        name:
+          - apparmor
+          - apparmor-utils
+          - apparmor-profiles
+        state: present
+
+    - name: Ensure AppArmor service is enabled and started
+      ansible.builtin.service:
+        name: apparmor
+        state: started
+        enabled: true
+
+- name: Configure SELinux (RedHat family)
+  when: ansible_os_family == 'RedHat'
+  block:
+    - name: Ensure SELinux python bindings are installed
+      ansible.builtin.dnf:
+        name: python3-libselinux
+        state: present
+
+    # Going straight from disabled to enforcing on an unlabeled filesystem can
+    # leave the host unbootable. Safe path: permissive + /.autorelabel, reboot,
+    # then re-run the playbook to switch to enforcing.
+    - name: Transition SELinux from disabled to permissive with full relabel
+      when: ansible_selinux.status == 'disabled'
+      block:
+        - name: Set SELinux to permissive mode
+          ansible.posix.selinux:
+            policy: targeted
+            state: permissive
+
+        - name: Schedule filesystem relabel on next boot
+          ansible.builtin.file:
+            path: /.autorelabel
+            state: touch
+            owner: root
+            group: root
+            mode: '0644'
+            modification_time: preserve
+            access_time: preserve
+
+        - name: Reboot to relabel filesystem
+          when: security_selinux_allow_reboot | bool
+          ansible.builtin.reboot:
+            reboot_timeout: 3600
+
+        - name: Warn that a second run is required for enforcing mode
+          ansible.builtin.debug:
+            msg: >-
+              SELinux was disabled: set to permissive and /.autorelabel scheduled.
+              {{ '' if security_selinux_allow_reboot | bool else 'Reboot the host, then ' }}re-run
+              the playbook to switch SELinux to enforcing.
+
+    - name: Set SELinux to Enforcing mode
+      when: ansible_selinux.status == 'enabled'
+      ansible.posix.selinux:
+        policy: targeted
+        state: enforcing

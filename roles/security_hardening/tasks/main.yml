@@ -1,0 +1,36 @@
+---
+- name: Validate supported OS family
+  ansible.builtin.assert:
+    that:
+      - ansible_os_family in ['Debian', 'RedHat']
+    fail_msg: "This security hardening role only supports Debian/Ubuntu and RedHat/AlmaLinux/Rocky."
+
+- name: Include OS-specific package updates
+  ansible.builtin.include_tasks: packages.yml
+
+- name: Include firewall configuration
+  ansible.builtin.include_tasks: firewall.yml
+
+- name: Include service disabling and masking
+  ansible.builtin.include_tasks: services.yml
+
+- name: Include Fail2ban configuration
+  ansible.builtin.include_tasks: fail2ban.yml
+
+- name: Include automatic updates configuration
+  ansible.builtin.include_tasks: updates.yml
+
+- name: Include Mandatory Access Control (AppArmor / SELinux)
+  ansible.builtin.include_tasks: mac.yml
+
+- name: Include kernel sysctl hardening
+  ansible.builtin.include_tasks: sysctl.yml
+
+- name: Include SSH daemon hardening
+  ansible.builtin.include_tasks: ssh.yml
+
+- name: Include password policy hardening
+  ansible.builtin.include_tasks: passwords.yml
+
+- name: Include auditing and Lynis
+  ansible.builtin.include_tasks: auditing.yml

@@ -1,0 +1,9 @@
+---
+- name: Stop, disable, and mask unnecessary or insecure services
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    state: stopped
+    enabled: false
+    masked: true
+  loop: "{{ security_masked_services }}"
+  failed_when: false

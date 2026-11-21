@@ -1,0 +1,43 @@
+---
+- name: Install Fail2ban (Debian/Ubuntu)
+  when: ansible_os_family == 'Debian'
+  ansible.builtin.apt:
+    name:
+      - fail2ban
+      - python3-systemd  # required by backend = systemd
+    state: present
+
+- name: Install Fail2ban (RedHat family)
+  when: ansible_os_family == 'RedHat'
+  ansible.builtin.dnf:
+    name:
+      - fail2ban
+      - fail2ban-systemd
+    state: present
+
+- name: Deploy Fail2ban jail.local configuration
+  ansible.builtin.copy:
+    dest: /etc/fail2ban/jail.local
+    owner: root
+    group: root
+    mode: '0644'
+    content: |
+      [DEFAULT]
+      bantime  = {{ security_fail2ban_bantime }}
+      findtime = {{ security_fail2ban_findtime }}
+      maxretry = {{ security_fail2ban_maxretry }}
+      backend  = systemd
+
+      [sshd]
+      enabled  = true
+      port     = {{ security_ssh_port }}
+      maxretry = {{ security_fail2ban_maxretry }}
+      bantime  = {{ security_fail2ban_bantime }}
+      findtime = {{ security_fail2ban_findtime }}
+  notify: Restart Fail2ban
+
+- name: Ensure Fail2ban service is enabled and started
+  ansible.builtin.service:
+    name: fail2ban
+    state: started
+    enabled: true

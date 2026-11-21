@@ -1,0 +1,47 @@
+---
+# Defaults for security_hardening role
+
+# SSH settings
+security_ssh_port: 22
+security_permit_root_login: "prohibit-password"
+security_password_authentication: "yes"
+security_max_auth_tries: 5
+
+# Password policies (PAM)
+security_password_min_len: 12
+security_password_min_class: 3
+security_password_max_days: 180
+security_password_min_days: 1
+security_password_warn_age: 14
+security_umask: "027"
+# Accounts never touched by chage (locked/key-only accounts are skipped automatically)
+security_password_expiry_exclude_users: []
+
+# Fail2ban (5 attempts, 30 min ban)
+security_fail2ban_bantime: "30m"
+security_fail2ban_findtime: "10m"
+security_fail2ban_maxretry: 5
+
+# Services to mask
+security_masked_services:
+  - avahi-daemon.service
+  - avahi-daemon.socket
+  - cups.service
+  - cups.socket
+  - cups-browsed.service
+  - telnet.socket
+  - rsh.socket
+  - rexec.socket
+  - talk.socket
+
+# Packages: full dist-upgrade / dnf upgrade on every run (kernel updates need a reboot)
+security_upgrade_all_packages: true
+
+# Kernel: reverse path filter (1 = strict/CIS, 2 = loose for asymmetric routing, VPN, K8s)
+security_rp_filter: 1
+
+# SELinux: allow the role to reboot the host when relabel is needed (disabled -> permissive)
+security_selinux_allow_reboot: false
+
+# Auditing
+security_run_lynis_audit: true

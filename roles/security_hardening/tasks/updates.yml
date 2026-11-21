@@ -1,0 +1,54 @@
+---
+- name: Configure automatic security updates (Debian/Ubuntu)
+  when: ansible_os_family == 'Debian'
+  block:
+    - name: Install unattended-upgrades
+      ansible.builtin.apt:
+        name: "{{ ['unattended-upgrades'] + (['update-notifier-common'] if ansible_distribution == 'Ubuntu' else []) }}"
+        state: present
+
+    - name: Configure apt periodic update intervals
+      ansible.builtin.copy:
+        dest: /etc/apt/apt.conf.d/20auto-upgrades
+        owner: root
+        group: root
+        mode: '0644'
+        content: |
+          APT::Periodic::Update-Package-Lists "1";
+          APT::Periodic::Download-Upgradeable-Packages "1";
+          APT::Periodic::AutocleanInterval "7";
+          APT::Periodic::Unattended-Upgrade "1";
+
+    - name: Ensure unattended-upgrades service is enabled and started
+      ansible.builtin.service:
+        name: unattended-upgrades
+        state: started
+        enabled: true
+
+- name: Configure dnf-automatic for security updates (RedHat family)
+  when: ansible_os_family == 'RedHat'
+  block:
+    - name: Install dnf-automatic
+      ansible.builtin.dnf:
+        name: dnf-automatic
+        state: present
+
+    - name: Set upgrade_type to security in automatic.conf
+      ansible.builtin.lineinfile:
+        path: /etc/dnf/automatic.conf
+        regexp: '^upgrade_type\s*='
+        line: 'upgrade_type = security'
+        backup: true
+
+    - name: Set apply_updates to yes in automatic.conf
+      ansible.builtin.lineinfile:
+        path: /etc/dnf/automatic.conf
+        regexp: '^apply_updates\s*='
+        line: 'apply_updates = yes'
+        backup: true
+
+    - name: Enable and start dnf-automatic timer
+      ansible.builtin.systemd:
+        name: dnf-automatic.timer
+        state: started
+        enabled: true
